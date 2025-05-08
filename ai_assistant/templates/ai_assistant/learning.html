@@ -1,0 +1,240 @@
+{% extends 'base.html' %}
+
+{% block title %}Personal Learning | FinArva AI{% endblock %}
+
+{% block extra_css %}
+<style>
+    .module-card {
+        transition: all 0.3s;
+        height: 100%;
+    }
+    .module-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    }
+    .skill-badge {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+    }
+    .progress-thin {
+        height: 6px;
+    }
+    .content-card {
+        transition: all 0.3s;
+    }
+    .content-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+    }
+    .difficulty-beginner {
+        border-left: 4px solid #28a745;
+    }
+    .difficulty-intermediate {
+        border-left: 4px solid #fd7e14;
+    }
+    .difficulty-advanced {
+        border-left: 4px solid #dc3545;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12 d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3">Personal Learning</h1>
+                <p class="text-muted">Improve your skills with personalized learning content</p>
+            </div>
+            <div>
+                <a href="#generateContent" class="btn btn-primary" data-bs-toggle="modal">
+                    <i class="fas fa-plus"></i> Generate New Content
+                </a>
+            </div>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Skills Overview -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="mb-0">My Skills</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for skill in skills %}
+                        <div class="col-md-3 mb-3">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h6 class="mb-0">{{ skill.get_product_type_display }}</h6>
+                                        <span class="badge bg-{{ skill.proficiency_level|divisibleby:3|yesno:'success,warning,danger' }} skill-badge">
+                                            Level {{ skill.proficiency_level }}/10
+                                        </span>
+                                    </div>
+                                    <div class="progress progress-thin">
+                                        <div class="progress-bar bg-{{ skill.proficiency_level|divisibleby:3|yesno:'success,warning,danger' }}"
+                                             role="progressbar"
+                                             style="width: {{ skill.proficiency_level }}0%;"
+                                             aria-valuenow="{{ skill.proficiency_level }}"
+                                             aria-valuemin="0"
+                                             aria-valuemax="10">
+                                        </div>
+                                    </div>
+                                    <div class="mt-3 text-end">
+                                        <a href="{% url 'accounts:skill_assessment' skill.product_type %}" class="btn btn-sm btn-outline-primary">
+                                            Take Assessment
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Learning Modules -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="mb-0">My Learning Modules</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% if learning_progress %}
+                            {% for module in learning_progress %}
+                            <div class="col-md-4 mb-4">
+                                <div class="card module-card">
+                                    <div class="card-body">
+                                        <h6>{{ module.module_name }}</h6>
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <span class="badge {% if module.completed %}bg-success{% else %}bg-primary{% endif %}">
+                                                {{ module.completion_percentage }}% Complete
+                                            </span>
+                                            <small class="text-muted">Last activity: {{ module.last_activity|date:"M d, Y" }}</small>
+                                        </div>
+                                        <div class="progress progress-thin mb-3">
+                                            <div class="progress-bar {% if module.completed %}bg-success{% endif %}"
+                                                 role="progressbar"
+                                                 style="width: {{ module.completion_percentage }}%;"
+                                                 aria-valuenow="{{ module.completion_percentage }}"
+                                                 aria-valuemin="0"
+                                                 aria-valuemax="100">
+                                            </div>
+                                        </div>
+                                        <div class="d-grid">
+                                            <button class="btn btn-sm btn-outline-primary">Continue Learning</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="col-12">
+                                <div class="text-center py-4">
+                                    <p class="text-muted mb-3">You haven't started any learning modules yet.</p>
+                                    <p>Generate personalized learning content to improve your skills.</p>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Learning Content -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="mb-0">Recent Learning Content</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% if learning_content %}
+                            {% for content in learning_content %}
+                            <div class="col-md-6 mb-4">
+                                <div class="card content-card difficulty-{{ content.difficulty_level }}">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <h5 class="mb-0">{{ content.topic }}</h5>
+                                            <span class="badge bg-{% if content.difficulty_level == 'beginner' %}success{% elif content.difficulty_level == 'intermediate' %}warning{% else %}danger{% endif %}">
+                                                {{ content.difficulty_level|title }}
+                                            </span>
+                                        </div>
+                                        <p class="text-muted mb-3">{{ content.summary }}</p>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <small class="text-muted">{{ content.created_at|date:"M d, Y" }}</small>
+                                            <a href="{% url 'ai_assistant:learning_content_detail' content.id %}" class="btn btn-sm btn-primary">
+                                                Read Content
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="col-12">
+                                <div class="text-center py-4">
+                                    <p class="text-muted mb-3">No learning content available yet.</p>
+                                    <button data-bs-toggle="modal" data-bs-target="#generateContent" class="btn btn-primary">
+                                        Generate New Content
+                                    </button>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Generate Content Modal -->
+<div class="modal fade" id="generateContent" tabindex="-1" aria-labelledby="generateContentLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="generateContentLabel">Generate Learning Content</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'ai_assistant:generate_learning_content' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="product_type" class="form-label">Select Product Type</label>
+                        <select class="form-select" id="product_type" name="product_type" required>
+                            <option value="">-- Select Product Type --</option>
+                            {% for value, label in product_types %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">AI will create personalized learning content based on your current skill level.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-magic me-2"></i> Generate Content
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

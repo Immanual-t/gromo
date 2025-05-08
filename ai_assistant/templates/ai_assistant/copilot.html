@@ -1,0 +1,394 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Sales Co-Pilot | FinArva AI{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chat-container {
+        height: 500px;
+        overflow-y: auto;
+        background-color: #f8f9fa;
+        border-radius: 10px;
+        border: 1px solid #dee2e6;
+        padding: 1rem;
+    }
+
+    .message-input {
+        border-radius: 20px;
+    }
+
+    .chat-message {
+        padding: 10px 15px;
+        margin-bottom: 10px;
+        border-radius: 15px;
+        max-width: 80%;
+    }
+
+    .chat-message.user {
+        background-color: #e9ecef;
+        align-self: flex-end;
+        margin-left: auto;
+    }
+
+    .chat-message.ai {
+        background-color: #e3f2fd;
+        align-self: flex-start;
+        margin-right: auto;
+    }
+
+    .setup-card {
+        transition: all 0.3s;
+    }
+
+    .setup-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3">Sales Co-Pilot</h1>
+            <p class="text-muted">Get real-time AI assistance during your customer conversations</p>
+        </div>
+    </div>
+
+    <!-- Setup Form -->
+    <div class="row justify-content-center" id="setupForm">
+        <div class="col-md-8">
+            <div class="card shadow mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Start a New Conversation</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="customerType" class="form-label">Customer Type</label>
+                            <select class="form-select" id="customerType">
+                                <option value="">-- Select Customer Type --</option>
+                                {% for value, label in customer_types %}
+                                <option value="{{ value }}">{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="productType" class="form-label">Product Type</label>
+                            <select class="form-select" id="productType">
+                                <option value="">-- Select Product Type --</option>
+                                {% for value, label in product_types %}
+                                <option value="{{ value }}">{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="d-grid mt-3">
+                        <button id="startTranscript" class="btn btn-primary" disabled>Start Co-Pilot Session</button>
+                    </div>
+                </div>
+            </div>
+
+            {% if recent_conversations %}
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="mb-0">Recent Conversations</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        {% for conversation in recent_conversations %}
+                        <a href="{% url 'ai_assistant:conversation_detail' conversation.id %}" class="list-group-item list-group-item-action">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">{{ conversation.title }}</h6>
+                                <small class="text-muted">{{ conversation.created_at|date:"M d, Y" }}</small>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <small class="text-muted">{{ conversation.get_customer_type_display }} • {{ conversation.get_product_type_display }}</small>
+                                <small>{{ conversation.messages.count }} messages</small>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Conversation Interface (hidden initially) -->
+    <div class="row d-none" id="conversationInterface">
+        <div class="col-md-8">
+            <!-- Chat Container -->
+            <div class="card shadow mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Customer Conversation</h5>
+                    <div>
+                        <button id="resetConversation" class="btn btn-sm btn-outline-danger me-2">
+                            <i class="fas fa-redo"></i> Reset
+                        </button>
+                        <button id="saveConversation" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-save"></i> Save
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="chat-container d-flex flex-column" id="chatMessages">
+                        <!-- Messages will be added here -->
+                    </div>
+
+                    <form id="messageForm" class="mt-3">
+                        {% csrf_token %}
+                        <div class="input-group">
+                            <input type="text" id="userMessage" class="form-control message-input" placeholder="What is the customer saying? Type here...">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <!-- Sales Assistance Panel -->
+            <div class="card shadow mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Common Objections</h5>
+                </div>
+                <div class="card-body">
+                    <div id="commonObjections" class="d-flex flex-wrap">
+                        <!-- Objection buttons will be added here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Product Information -->
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="mb-0">Quick References</h5>
+                </div>
+                <div class="card-body">
+                    <div class="accordion" id="productAccordion">
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#keyFeatures">
+                                    Key Features
+                                </button>
+                            </h2>
+                            <div id="keyFeatures" class="accordion-collapse collapse" data-bs-parent="#productAccordion">
+                                <div class="accordion-body" id="featuresContent">
+                                    <!-- Will be populated by JS -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#benefits">
+                                    Benefits
+                                </button>
+                            </h2>
+                            <div id="benefits" class="accordion-collapse collapse" data-bs-parent="#productAccordion">
+                                <div class="accordion-body" id="benefitsContent">
+                                    <!-- Will be populated by JS -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#closingTips">
+                                    Closing Tips
+                                </button>
+                            </h2>
+                            <div id="closingTips" class="accordion-collapse collapse" data-bs-parent="#productAccordion">
+                                <div class="accordion-body" id="closingContent">
+                                    <!-- Will be populated by JS -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/copilot.js' %}"></script>
+<script>
+    // Initialize product information
+    const productInfo = {
+        'insurance': {
+            features: [
+                'Comprehensive coverage for life/health/property',
+                'Flexible premium payment options',
+                'Tax benefits under Section 80C/80D',
+                'No-claim bonuses',
+                'Rider options for enhanced coverage'
+            ],
+            benefits: [
+                'Financial security for family',
+                'Protection against unexpected expenses',
+                'Peace of mind during emergencies',
+                'Tax savings on premium payments',
+                'Wealth creation through investment-linked plans'
+            ],
+            closing: [
+                'Highlight the cost of NOT having insurance',
+                'Emphasize family security aspects',
+                'Offer a limited-time discount or benefit',
+                'Share a relevant customer success story',
+                'Suggest starting with a smaller coverage and upgrading later'
+            ]
+        },
+        'credit_card': {
+            features: [
+                'Reward points on all transactions',
+                'Zero liability on fraudulent transactions',
+                'EMI options for large purchases',
+                'Complimentary airport lounge access',
+                'Add-on cards for family members'
+            ],
+            benefits: [
+                'Convenience and security over cash',
+                'Emergency funds when needed',
+                'Build credit history for future loans',
+                'Exclusive lifestyle privileges and offers',
+                'Travel and shopping insurance coverage'
+            ],
+            closing: [
+                'Emphasize the zero annual fee offer',
+                'Highlight immediate approval and quick delivery',
+                'Discuss how it saves money through offers',
+                'Compare with other cards to show value',
+                'Mention exclusive offers only for new cardholders'
+            ]
+        },
+        'loan': {
+            features: [
+                'Competitive interest rates',
+                'Flexible repayment tenures',
+                'Minimal documentation',
+                'Quick approval and disbursement',
+                'No prepayment penalties'
+            ],
+            benefits: [
+                'Immediate access to funds',
+                'Consolidate multiple debts',
+                'Improve credit score with timely payments',
+                'Tax benefits on home loans',
+                'Fund major expenses without depleting savings'
+            ],
+            closing: [
+                'Calculate and show monthly EMI amounts',
+                'Compare with competitors to show advantages',
+                'Offer to handle all paperwork',
+                'Emphasize quick processing timelines',
+                'Suggest starting the application process right away'
+            ]
+        },
+        'savings': {
+            features: [
+                'High interest rates on deposits',
+                'Zero balance maintenance option',
+                'Free digital banking services',
+                'Auto-sweep facility to FD',
+                'Integrated UPI and mobile banking'
+            ],
+            benefits: [
+                'Safe and secure money management',
+                'Easy access to funds when needed',
+                'Growth of money through interest',
+                'Simplified bill payments and transfers',
+                'Foundation for other banking relationships'
+            ],
+            closing: [
+                'Emphasize the higher interest rate compared to other banks',
+                'Highlight zero or low minimum balance requirement',
+                'Mention exclusive benefits for salary accounts',
+                'Offer doorstep service for document collection',
+                'Show a demo of the mobile banking app'
+            ]
+        },
+        'demat': {
+            features: [
+                'Instant account opening',
+                'Low brokerage fees',
+                'Advanced trading platforms',
+                'Research and analysis tools',
+                'Multiple market access (Equity, F&O, Currency)'
+            ],
+            benefits: [
+                'Paperless trading experience',
+                'Portfolio diversification opportunities',
+                'Potential for wealth creation',
+                'Convenience of managing all investments in one place',
+                'Easy tracking of investment performance'
+            ],
+            closing: [
+                'Offer zero account opening fees (limited time)',
+                'Show a demo of the trading platform',
+                'Highlight educational resources for new investors',
+                'Emphasize dedicated relationship manager',
+                'Mention the ease of transferring from other brokers'
+            ]
+        },
+        'investment': {
+            features: [
+                'Diversified portfolio options',
+                'Professional fund management',
+                'SIP facilities with low minimums',
+                'Goal-based investment planning',
+                'Regular portfolio rebalancing'
+            ],
+            benefits: [
+                'Potential for inflation-beating returns',
+                'Tax efficiency through various options',
+                'Disciplined approach to wealth creation',
+                'Risk management through diversification',
+                'Liquidity depending on investment type'
+            ],
+            closing: [
+                'Start with a risk assessment questionnaire',
+                'Show historical performance of recommended funds',
+                'Emphasize the power of compounding with examples',
+                'Suggest starting with a small SIP amount',
+                'Offer a complimentary financial planning session'
+            ]
+        }
+    };
+
+    // Function to update product information panels
+    function updateProductInfo(productType) {
+        const info = productInfo[productType];
+        if (!info) return;
+
+        // Update features
+        const featuresContent = document.getElementById('featuresContent');
+        featuresContent.innerHTML = `<ul class="mb-0">
+            ${info.features.map(feature => `<li>${feature}</li>`).join('')}
+        </ul>`;
+
+        // Update benefits
+        const benefitsContent = document.getElementById('benefitsContent');
+        benefitsContent.innerHTML = `<ul class="mb-0">
+            ${info.benefits.map(benefit => `<li>${benefit}</li>`).join('')}
+        </ul>`;
+
+        // Update closing tips
+        const closingContent = document.getElementById('closingContent');
+        closingContent.innerHTML = `<ul class="mb-0">
+            ${info.closing.map(tip => `<li>${tip}</li>`).join('')}
+        </ul>`;
+    }
+
+    // Update product info when product type changes
+    document.getElementById('productType').addEventListener('change', function() {
+        updateProductInfo(this.value);
+    });
+</script>
+{% endblock %}

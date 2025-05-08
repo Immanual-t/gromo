@@ -1,0 +1,397 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ content.topic }} | FinArva AI{% endblock %}
+
+{% block extra_css %}
+<style>
+    .learning-content {
+        line-height: 1.7;
+    }
+    .learning-content h2 {
+        margin-top: 1.5rem;
+        margin-bottom: 1rem;
+        font-size: 1.5rem;
+        color: #0d6efd;
+    }
+    .learning-content h3 {
+        margin-top: 1.25rem;
+        margin-bottom: 0.75rem;
+        font-size: 1.25rem;
+        color: #495057;
+    }
+    .learning-content ul, .learning-content ol {
+        margin-bottom: 1rem;
+    }
+    .learning-content blockquote {
+        border-left: 4px solid #ced4da;
+        padding-left: 1rem;
+        margin-left: 0;
+        color: #6c757d;
+    }
+    .difficulty-beginner {
+        border-left: 4px solid #28a745;
+    }
+    .difficulty-intermediate {
+        border-left: 4px solid #fd7e14;
+    }
+    .difficulty-advanced {
+        border-left: 4px solid #dc3545;
+    }
+    .related-content {
+        transition: all 0.3s;
+    }
+    .related-content:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'ai_assistant:learning' %}">Learning</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ content.topic }}</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-9">
+            <!-- Main Content -->
+            <div class="card shadow difficulty-{{ content.difficulty_level }} mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h1 class="h3 mb-0">{{ content.topic }}</h1>
+                    <span class="badge bg-{% if content.difficulty_level == 'beginner' %}success{% elif content.difficulty_level == 'intermediate' %}warning{% else %}danger{% endif %}">
+                        {{ content.difficulty_level|title }} Level
+                    </span>
+                </div>
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div>
+                            <span class="badge bg-secondary">{{ content.get_product_type_display }}</span>
+                            <small class="text-muted ms-2">Generated on {{ content.created_at|date:"M d, Y" }}</small>
+                        </div>
+                        <div>
+                            <button class="btn btn-sm btn-outline-primary me-2" id="printContent">
+                                <i class="fas fa-print"></i> Print
+                            </button>
+                            <button class="btn btn-sm btn-outline-primary" id="saveAsPdf">
+                                <i class="fas fa-file-pdf"></i> Save as PDF
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="learning-content">
+                        {{ content.content|linebreaks|safe }}
+                    </div>
+
+                    <!-- Quiz Section (for future implementation) -->
+                    <div class="mt-5">
+                        <h4>Knowledge Check</h4>
+                        <p>Test your understanding with a quick quiz.</p>
+                        <button class="btn btn-primary" id="startQuiz">
+                            <i class="fas fa-question-circle me-2"></i> Start Quiz
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mark as Complete Card -->
+            <div class="card shadow mb-4">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-1">Have you completed this module?</h5>
+                        <p class="text-muted mb-0">Mark as complete to track your progress</p>
+                    </div>
+                    <form method="post" action="{% url 'ai_assistant:mark_content_complete' content.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-check me-2"></i> Mark as Complete
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3">
+            <!-- Related Content -->
+            <div class="card shadow mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Related Content</h5>
+                </div>
+                <div class="card-body">
+                    {% if related_content %}
+                        <div class="list-group">
+                            {% for item in related_content %}
+                            <a href="{% url 'ai_assistant:learning_content_detail' item.id %}" class="list-group-item list-group-item-action related-content">
+                                <div class="d-flex justify-content-between">
+                                    <h6 class="mb-1">{{ item.topic }}</h6>
+                                    <span class="badge bg-{% if item.difficulty_level == 'beginner' %}success{% elif item.difficulty_level == 'intermediate' %}warning{% else %}danger{% endif %}">
+                                        {{ item.difficulty_level|first }}
+                                    </span>
+                                </div>
+                                <small class="text-muted">{{ item.created_at|date:"M d, Y" }}</small>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">No related content available</p>
+                    {% endif %}
+
+                    <div class="d-grid mt-3">
+                        <button data-bs-toggle="modal" data-bs-target="#generateContent" class="btn btn-outline-primary">
+                            Generate More Content
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Skills Info -->
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="mb-0">Skill Progression</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2">Learn more to improve your skills!</p>
+                    <div class="progress mb-3" style="height: 8px;">
+                        <div class="progress-bar bg-primary" role="progressbar" style="width: 35%;" aria-valuenow="35" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <p class="text-muted small mb-0">Complete more learning modules to increase your proficiency and earn higher commissions.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Generate Content Modal -->
+<div class="modal fade" id="generateContent" tabindex="-1" aria-labelledby="generateContentLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="generateContentLabel">Generate Learning Content</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'ai_assistant:generate_learning_content' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="product_type" class="form-label">Select Product Type</label>
+                        <select class="form-select" id="product_type" name="product_type" required>
+                            <option value="">-- Select Product Type --</option>
+                            <option value="insurance" {% if content.product_type == 'insurance' %}selected{% endif %}>Insurance</option>
+                            <option value="credit_card" {% if content.product_type == 'credit_card' %}selected{% endif %}>Credit Card</option>
+                            <option value="loan" {% if content.product_type == 'loan' %}selected{% endif %}>Loan</option>
+                            <option value="savings" {% if content.product_type == 'savings' %}selected{% endif %}>Savings Account</option>
+                            <option value="demat" {% if content.product_type == 'demat' %}selected{% endif %}>Demat Account</option>
+                            <option value="investment" {% if content.product_type == 'investment' %}selected{% endif %}>Investment</option>
+                        </select>
+                        <div class="form-text">AI will create personalized learning content based on your current skill level.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-magic me-2"></i> Generate Content
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Quiz Modal -->
+<div class="modal fade" id="quizModal" tabindex="-1" aria-labelledby="quizModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="quizModalLabel">Knowledge Check: {{ content.topic }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Add the CSRF token here, right before the quizContainer div -->
+                {% csrf_token %}
+                <div id="quizContainer">
+                    <!-- Quiz questions will be loaded here dynamically -->
+                    <p class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="text-center">Loading quiz questions...</p>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add this right after the DOMContentLoaded event
+        const contentId = {{ content.id }};
+
+        // Quiz functionality
+        const startQuizBtn = document.getElementById('startQuiz');
+        const quizModal = new bootstrap.Modal(document.getElementById('quizModal'));
+        let currentQuestion = 0;
+        let questions = [];
+        let score = 0;
+
+        if (startQuizBtn) {
+            startQuizBtn.addEventListener('click', function() {
+                // Show quiz modal
+                quizModal.show();
+
+                // Fetch questions from server
+                fetch(`/ai-assistant/get-quiz-questions/${contentId}/`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success' && data.questions.length > 0) {
+                            questions = data.questions;
+                            currentQuestion = 0;
+                            score = 0;
+                            showQuestion(currentQuestion);
+                        } else {
+                            document.getElementById('quizContainer').innerHTML = `
+                                <div class="alert alert-warning">
+                                    <p>Sorry, we couldn't load quiz questions at this time. Please try again later.</p>
+                                </div>
+                            `;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching questions:', error);
+                        document.getElementById('quizContainer').innerHTML = `
+                            <div class="alert alert-danger">
+                                <p>An error occurred while loading the quiz. Please try again later.</p>
+                            </div>
+                        `;
+                    });
+            });
+        }
+
+        function showQuestion(index) {
+            const question = questions[index];
+            const questionHtml = `
+                <div class="quiz-question mb-4">
+                    <h5>Question ${index + 1} of ${questions.length}</h5>
+                    <p class="mb-3">${question.question}</p>
+                    <div class="options">
+                        ${question.options.map((option, i) => `
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="radio" name="q${index}" id="q${index}o${i}" value="${i}">
+                                <label class="form-check-label" for="q${index}o${i}">
+                                    ${option}
+                                </label>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between">
+                    ${index > 0 ? `<button class="btn btn-outline-secondary prev-question">Previous</button>` : `<button class="btn btn-outline-secondary" disabled>Previous</button>`}
+                    ${index < questions.length - 1 ? `<button class="btn btn-primary next-question">Next Question</button>` : `<button class="btn btn-success submit-quiz">Submit Quiz</button>`}
+                </div>
+            `;
+
+            document.getElementById('quizContainer').innerHTML = questionHtml;
+
+            // Add event listeners for navigation
+            const nextBtn = document.querySelector('.next-question');
+            if (nextBtn) {
+                nextBtn.addEventListener('click', function() {
+                    currentQuestion++;
+                    showQuestion(currentQuestion);
+                });
+            }
+
+            const prevBtn = document.querySelector('.prev-question');
+            if (prevBtn) {
+                prevBtn.addEventListener('click', function() {
+                    currentQuestion--;
+                    showQuestion(currentQuestion);
+                });
+            }
+
+            const submitBtn = document.querySelector('.submit-quiz');
+            if (submitBtn) {
+                submitBtn.addEventListener('click', function() {
+                    calculateScore();
+                    showResults();
+                });
+            }
+        }
+
+        function calculateScore() {
+            score = 0;
+            questions.forEach((question, index) => {
+                const selectedOption = document.querySelector(`input[name="q${index}"]:checked`);
+                if (selectedOption && parseInt(selectedOption.value) === question.correct_answer) {
+                    score++;
+                }
+            });
+        }
+
+        function showResults() {
+            const percentage = (score / questions.length) * 100;
+            let message = '';
+
+            if (percentage >= 80) {
+                message = 'Excellent! You have a strong understanding of this topic.';
+            } else if (percentage >= 60) {
+                message = 'Good job! You know the basics, but there\'s room for improvement.';
+            } else {
+                message = 'You might want to review this content again to strengthen your knowledge.';
+            }
+
+            const resultsHtml = `
+                <div class="text-center py-4">
+                    <h4>Quiz Results</h4>
+                    <div class="display-4 my-3">${score}/${questions.length}</div>
+                    <div class="progress mb-3" style="height: 20px;">
+                        <div class="progress-bar ${percentage >= 60 ? 'bg-success' : 'bg-warning'}" role="progressbar" style="width: ${percentage}%;" aria-valuenow="${percentage}" aria-valuemin="0" aria-valuemax="100">${percentage.toFixed(0)}%</div>
+                    </div>
+                    <p class="mb-4">${message}</p>
+                    <button class="btn btn-primary" id="closeQuiz">Close Quiz</button>
+                </div>
+            `;
+
+            document.getElementById('quizContainer').innerHTML = resultsHtml;
+
+            // Add event listener for closing quiz
+            document.getElementById('closeQuiz').addEventListener('click', function() {
+                quizModal.hide();
+
+                // Send results to server
+                fetch(`/ai-assistant/submit-quiz-results/${contentId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    },
+                    body: JSON.stringify({
+                        score: score,
+                        total: questions.length,
+                        percentage: percentage
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Maybe show a toast notification
+                        console.log('Quiz results saved successfully');
+                    }
+                })
+                .catch(error => console.error('Error saving quiz results:', error));
+            });
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,433 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Performance Analytics | FinArva AI{% endblock %}
+
+{% block extra_css %}
+<style>
+    .date-range-picker .form-control {
+        border-radius: 0;
+    }
+    .date-range-picker .input-group-text {
+        background-color: #f8f9fa;
+        border-radius: 0;
+    }
+    .filter-btn {
+        border-radius: 0 4px 4px 0;
+    }
+    .stat-card {
+        transition: all 0.3s;
+    }
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    }
+    .stat-icon {
+        font-size: 2rem;
+        color: #007bff;
+    }
+    .chart-container {
+        position: relative;
+        height: 350px;
+        width: 100%;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12 d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3">Performance Analytics</h1>
+                <p class="text-muted">Deep dive into your sales performance metrics</p>
+            </div>
+            <div>
+                <a href="{% url 'dashboard:set_goals' %}" class="btn btn-outline-primary">
+                    <i class="fas fa-bullseye"></i> Set Goals
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Date Range Filter -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-body">
+                    <form method="get" class="row g-3 align-items-center">
+                        <div class="col-md-4">
+                            <label class="form-label">Date Range</label>
+                            <div class="input-group date-range-picker">
+                                <span class="input-group-text"><i class="fas fa-calendar"></i></span>
+                                <input type="date" class="form-control" name="start_date" value="{{ start_date|date:'Y-m-d' }}">
+                                <span class="input-group-text">to</span>
+                                <input type="date" class="form-control" name="end_date" value="{{ end_date|date:'Y-m-d' }}">
+                                <button type="submit" class="btn btn-primary filter-btn">Filter</button>
+                            </div>
+                        </div>
+                        <div class="col-md-8 text-end">
+                            <div class="btn-group" role="group">
+                                <a href="?period=week" class="btn btn-outline-secondary">This Week</a>
+                                <a href="?period=month" class="btn btn-outline-secondary">This Month</a>
+                                <a href="?period=quarter" class="btn btn-outline-secondary">This Quarter</a>
+                                <a href="?period=year" class="btn btn-outline-secondary">This Year</a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Overview -->
+    <div class="row mb-4">
+        <!-- Total Sales -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-0 shadow h-100 stat-card">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-3">
+                            <div class="stat-icon bg-light p-3 rounded-circle">
+                                <i class="fas fa-rupee-sign"></i>
+                            </div>
+                        </div>
+                        <div class="col-9 text-end">
+                            <h5 class="text-muted mb-0">Total Sales</h5>
+                            <h3 class="mb-0">₹{{ period_total|floatformat:2 }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Commission -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-0 shadow h-100 stat-card">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-3">
+                            <div class="stat-icon bg-light p-3 rounded-circle">
+                                <i class="fas fa-hand-holding-usd"></i>
+                            </div>
+                        </div>
+                        <div class="col-9 text-end">
+                            <h5 class="text-muted mb-0">Total Commission</h5>
+                            <h3 class="mb-0">₹{{ period_commission|floatformat:2 }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sales Count -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-0 shadow h-100 stat-card">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-3">
+                            <div class="stat-icon bg-light p-3 rounded-circle">
+                                <i class="fas fa-clipboard-check"></i>
+                            </div>
+                        </div>
+                        <div class="col-9 text-end">
+                            <h5 class="text-muted mb-0">Sales Count</h5>
+                            <h3 class="mb-0">{{ period_count }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Average Sale Value -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-0 shadow h-100 stat-card">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-3">
+                            <div class="stat-icon bg-light p-3 rounded-circle">
+                                <i class="fas fa-chart-line"></i>
+                            </div>
+                        </div>
+                        <div class="col-9 text-end">
+                            <h5 class="text-muted mb-0">Average Sale</h5>
+                            <h3 class="mb-0">₹{{ avg_sale_value|floatformat:2 }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="row">
+        <!-- Period Performance Chart -->
+        <div class="col-xl-8 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Sales Trend</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="periodPerformanceChart"
+                               data-labels="{{ period_labels }}"
+                               data-values="{{ period_values }}"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Product Distribution -->
+        <div class="col-xl-4 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Product Distribution</h5>
+                </div>
+                <div class="card-body">
+                    {% if product_categories %}
+                        <div class="chart-container">
+                            <canvas id="productChart"
+                                   data-labels="{{ product_labels }}"
+                                   data-values="{{ product_values }}"></canvas>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <p class="text-muted mb-0">No sales data available</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Customer Type Distribution -->
+        <div class="col-xl-6 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Customer Types</h5>
+                </div>
+                <div class="card-body">
+                    {% if customer_types %}
+                        <div class="chart-container">
+                            <canvas id="customerChart"
+                                   data-labels="{{ customer_labels }}"
+                                   data-values="{{ customer_values }}"></canvas>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <p class="text-muted mb-0">No customer data available</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Product Categories Table -->
+        <div class="col-xl-6 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Product Performance</h5>
+                </div>
+                <div class="card-body">
+                    {% if product_categories %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Product Category</th>
+                                        <th>Sales Count</th>
+                                        <th>Total Amount</th>
+                                        <th>Avg. Sale</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for category in product_categories %}
+                                    <tr>
+                                        <td>{{ category.product_category|title }}</td>
+                                        <td>{{ category.count }}</td>
+                                        <td>₹{{ category.total|floatformat:2 }}</td>
+                                        <td>₹{{ category.avg_amount|floatformat:2 }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <p class="text-muted mb-0">No product data available</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Day by Day Performance -->
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="mb-0">Daily Performance</h5>
+                </div>
+                <div class="card-body">
+                    {% if daily_performance %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Sales Count</th>
+                                        <th>Total Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for day in daily_performance %}
+                                    <tr>
+                                        <td>{{ day.date }}</td>
+                                        <td>{{ day.count }}</td>
+                                        <td>₹{{ day.total|floatformat:2 }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <p class="text-muted mb-0">No daily performance data available</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Period Performance Chart
+        const periodCtx = document.getElementById('periodPerformanceChart');
+        if (periodCtx) {
+            const periodLabels = JSON.parse(periodCtx.getAttribute('data-labels'));
+            const periodValues = JSON.parse(periodCtx.getAttribute('data-values'));
+
+            new Chart(periodCtx, {
+                type: 'line',
+                data: {
+                    labels: periodLabels,
+                    datasets: [{
+                        label: 'Sales Amount (₹)',
+                        data: periodValues,
+                        fill: true,
+                        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                        borderColor: '#0d6efd',
+                        tension: 0.4,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#0d6efd'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `₹${context.raw.toLocaleString('en-IN')}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return `₹${value.toLocaleString('en-IN')}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Product Distribution Chart
+        const productCtx = document.getElementById('productChart');
+        if (productCtx) {
+            const productLabels = JSON.parse(productCtx.getAttribute('data-labels'));
+            const productValues = JSON.parse(productCtx.getAttribute('data-values'));
+
+            if (productLabels && productLabels.length > 0) {
+                new Chart(productCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: productLabels,
+                        datasets: [{
+                            data: productValues,
+                            backgroundColor: [
+                                '#0d6efd',
+                                '#6610f2',
+                                '#6f42c1',
+                                '#d63384',
+                                '#dc3545',
+                                '#fd7e14',
+                                '#ffc107'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: {
+                                position: 'right'
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const value = context.raw;
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = ((value / total) * 100).toFixed(1);
+                                        return `₹${value.toLocaleString('en-IN')} (${percentage}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        // Customer Type Chart
+const customerCtx = document.getElementById('customerChart');
+if (customerCtx) {
+    const customerLabels = JSON.parse(customerCtx.getAttribute('data-labels'));
+    const customerValues = JSON.parse(customerCtx.getAttribute('data-values'));
+
+    if (customerLabels && customerLabels.length > 0) {
+        new Chart(customerCtx, {
+            type: 'bar',
+            data: {
+                // Here's the issue - this label formatting might be incorrect
+                labels: customerLabels.map(label => label.replace('_', ' ').charAt(0).toUpperCase() + label.replace('_', ' ').slice(1)),
+                datasets: [{
+                    label: 'Number of Customers',
+                    data: customerValues,
+                    // Rest of the config...
+                }]
+            },
+            // Options...
+        });
+    }
+}
+    });
+</script>
+{% endblock %}

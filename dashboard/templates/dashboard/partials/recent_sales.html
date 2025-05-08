@@ -1,0 +1,53 @@
+{% if recent_sales %}
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Product</th>
+                    <th>Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sale in recent_sales %}
+                <tr>
+                    <td>{{ sale.date|date:"M d" }}</td>
+                    <td>
+                        <span class="badge bg-{{ sale.product_category|slugify }}">
+                            {{ sale.product_category|title }}
+                        </span>
+                        {{ sale.product }}
+                    </td>
+                    <td>₹{{ sale.amount|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% else %}
+    <div class="text-center py-4">
+        <p class="text-muted mb-3">No recent sales data available</p>
+        <a href="{% url 'dashboard:add_sale' %}" class="btn btn-primary">Add Sale</a>
+    </div>
+{% endif %}
+
+<style>
+    .bg-insurance {
+        background-color: #0d6efd;
+    }
+    .bg-credit-card {
+        background-color: #6610f2;
+    }
+    .bg-loan {
+        background-color: #6f42c1;
+    }
+    .bg-savings {
+        background-color: #d63384;
+    }
+    .bg-demat {
+        background-color: #dc3545;
+    }
+    .bg-investment {
+        background-color: #fd7e14;
+    }
+</style>

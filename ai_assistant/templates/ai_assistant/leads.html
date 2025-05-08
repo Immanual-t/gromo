@@ -1,0 +1,502 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}Smart Leads | FinArva AI{% endblock %}
+
+{% block extra_css %}
+<style>
+    .lead-card {
+        transition: all 0.3s;
+    }
+    .lead-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    }
+    .lead-badge {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+    }
+    .priority-indicator {
+        width: 100%;
+        height: 4px;
+        margin-top: 8px;
+        background-color: #e9ecef;
+        border-radius: 2px;
+        overflow: hidden;
+    }
+    .priority-bar {
+        height: 100%;
+        background-color: #0d6efd;
+    }
+    .message-preview {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 10px;
+        padding: 15px;
+        margin-top: 10px;
+    }
+    .kanban-column {
+        min-height: 400px;
+        background-color: #f8f9fa;
+        border-radius: 10px;
+        padding: 15px;
+    }
+    .bg-purple {
+        background-color: #6f42c1;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12 d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3">Smart Leads</h1>
+                <p class="text-muted">Manage and prioritize your sales leads efficiently</p>
+            </div>
+            <div>
+                <a href="{% url 'ai_assistant:add_lead' %}" class="btn btn-primary me-2">
+                    <i class="fas fa-plus"></i> Add Lead
+                </a>
+                <a href="{% url 'ai_assistant:analyze_leads' %}" class="btn btn-outline-primary">
+                    <i class="fas fa-brain"></i> Analyze Leads
+                </a>
+            </div>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Kanban Board -->
+    <div class="row">
+        <!-- New Leads -->
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">New Leads ({{ new_leads.count }})</h5>
+                </div>
+                <div class="card-body kanban-column">
+                    {% if new_leads %}
+                        {% for lead in new_leads %}
+                            <div class="card mb-3 lead-card" id="lead-{{ lead.id }}">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h6 class="mb-0">{{ lead.name }}</h6>
+                                        <span class="badge bg-primary lead-badge">{{ lead.get_status_display }}</span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <small><i class="fas fa-phone me-2"></i>{{ lead.phone }}</small>
+                                    </div>
+                                    {% if lead.email %}
+                                    <div class="mb-2">
+                                        <small><i class="fas fa-envelope me-2"></i>{{ lead.email }}</small>
+                                    </div>
+                                    {% endif %}
+                                    <div class="mb-2">
+                                        <span class="badge bg-secondary">{{ lead.get_interest_display }}</span>
+                                        <span class="badge bg-secondary">{{ lead.get_lead_source_display }}</span>
+                                    </div>
+
+                                    <div class="priority-indicator">
+                                        <div class="priority-bar" style="width: {{ lead.priority_score|floatformat:2|multiply:100 }}%"></div>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center mt-1">
+                                        <small class="text-muted">Priority: {{ lead.priority_score|floatformat:2|multiply:100 }}%</small>
+                                        <small class="text-muted">{{ lead.created_at|date:"M d, Y" }}</small>
+                                    </div>
+
+                                    <div class="mt-3 d-flex justify-content-between">
+                                        <button class="btn btn-sm btn-outline-primary generate-message" data-lead-id="{{ lead.id }}">
+                                            <i class="fas fa-comment-dots"></i> Generate Message
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-success update-status" data-lead-id="{{ lead.id }}" data-status="contacted">
+                                            <i class="fas fa-arrow-right"></i> Mark Contacted
+                                        </button>
+                                    </div>
+
+                                    <div class="message-preview d-none" id="message-{{ lead.id }}"></div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-5">
+                            <p class="text-muted">No new leads</p>
+                            <a href="{% url 'ai_assistant:add_lead' %}" class="btn btn-primary">Add Lead</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Contacted Leads -->
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header bg-purple text-white">
+                    <h5 class="mb-0">Contacted ({{ contacted_leads.count }})</h5>
+                </div>
+                <div class="card-body kanban-column">
+                    {% if contacted_leads %}
+                        {% for lead in contacted_leads %}
+                            <div class="card mb-3 lead-card" id="lead-{{ lead.id }}">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h6 class="mb-0">{{ lead.name }}</h6>
+                                        <span class="badge bg-purple lead-badge">{{ lead.get_status_display }}</span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <small><i class="fas fa-phone me-2"></i>{{ lead.phone }}</small>
+                                    </div>
+                                    {% if lead.email %}
+                                    <div class="mb-2">
+                                        <small><i class="fas fa-envelope me-2"></i>{{ lead.email }}</small>
+                                    </div>
+                                    {% endif %}
+                                    <div class="mb-2">
+                                        <span class="badge bg-secondary">{{ lead.get_interest_display }}</span>
+                                        <span class="badge bg-secondary">{{ lead.get_lead_source_display }}</span>
+                                    </div>
+
+                                    <div class="priority-indicator">
+                                        <div class="priority-bar" style="width: {{ lead.priority_score|floatformat:2|multiply:100 }}%"></div>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center mt-1">
+                                        <small class="text-muted">Priority: {{ lead.priority_score|floatformat:2|multiply:100 }}%</small>
+                                        <small class="text-muted">{{ lead.created_at|date:"M d, Y" }}</small>
+                                    </div>
+
+                                    <div class="mt-3 d-flex justify-content-between">
+                                        <button class="btn btn-sm btn-outline-primary generate-message" data-lead-id="{{ lead.id }}">
+                                            <i class="fas fa-comment-dots"></i> Follow Up
+                                        </button>
+                                        <div>
+                                            <button class="btn btn-sm btn-outline-success update-status" data-lead-id="{{ lead.id }}" data-status="interested">
+                                                <i class="fas fa-arrow-right"></i> Interested
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger update-status" data-lead-id="{{ lead.id }}" data-status="lost">
+                                                <i class="fas fa-times"></i> Lost
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="message-preview d-none" id="message-{{ lead.id }}"></div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-5">
+                            <p class="text-muted">No contacted leads</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Interested Leads -->
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Interested ({{ interested_leads.count }})</h5>
+                </div>
+                <div class="card-body kanban-column">
+                    {% if interested_leads %}
+                        {% for lead in interested_leads %}
+                            <div class="card mb-3 lead-card" id="lead-{{ lead.id }}">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h6 class="mb-0">{{ lead.name }}</h6>
+                                        <span class="badge bg-success lead-badge">{{ lead.get_status_display }}</span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <small><i class="fas fa-phone me-2"></i>{{ lead.phone }}</small>
+                                    </div>
+                                    {% if lead.email %}
+                                    <div class="mb-2">
+                                        <small><i class="fas fa-envelope me-2"></i>{{ lead.email }}</small>
+                                    </div>
+                                    {% endif %}
+                                    <div class="mb-2">
+                                        <span class="badge bg-secondary">{{ lead.get_interest_display }}</span>
+                                        <span class="badge bg-secondary">{{ lead.get_lead_source_display }}</span>
+                                    </div>
+
+                                    <div class="priority-indicator">
+                                        <div class="priority-bar bg-success" style="width: {{ lead.priority_score|floatformat:2|multiply:100 }}%"></div>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center mt-1">
+                                        <small class="text-muted">Priority: {{ lead.priority_score|floatformat:2|multiply:100 }}%</small>
+                                        <small class="text-muted">{{ lead.created_at|date:"M d, Y" }}</small>
+                                    </div>
+
+                                    <div class="mt-3 d-flex justify-content-between">
+                                        <a href="{% url 'ai_assistant:copilot' %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-robot"></i> Use Co-Pilot
+                                        </a>
+                                        <div>
+                                            <button class="btn btn-sm btn-success update-status" data-lead-id="{{ lead.id }}" data-status="converted">
+                                                <i class="fas fa-check"></i> Converted
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger update-status" data-lead-id="{{ lead.id }}" data-status="lost">
+                                                <i class="fas fa-times"></i> Lost
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-5">
+                            <p class="text-muted">No interested leads</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Converted & Lost Leads (Collapsed by default) -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header" id="completedHeader" data-bs-toggle="collapse" data-bs-target="#completedLeads" aria-expanded="false">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Completed Leads</h5>
+                        <span class="badge bg-secondary">{{ converted_leads.count|add:lost_leads.count }}</span>
+                    </div>
+                </div>
+                <div class="collapse" id="completedLeads">
+                    <div class="card-body">
+                        <ul class="nav nav-tabs" id="completedTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="converted-tab" data-bs-toggle="tab" data-bs-target="#converted" type="button" role="tab" aria-controls="converted" aria-selected="true">
+                                    Converted ({{ converted_leads.count }})
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="lost-tab" data-bs-toggle="tab" data-bs-target="#lost" type="button" role="tab" aria-controls="lost" aria-selected="false">
+                                    Lost ({{ lost_leads.count }})
+                                </button>
+                            </li>
+                        </ul>
+                        <div class="tab-content mt-3" id="completedTabsContent">
+                            <div class="tab-pane fade show active" id="converted" role="tabpanel" aria-labelledby="converted-tab">
+                                <div class="row">
+                                    {% if converted_leads %}
+                                        {% for lead in converted_leads %}
+                                            <div class="col-md-4 mb-3">
+                                                <div class="card">
+                                                    <div class="card-body">
+                                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                                            <h6 class="mb-0">{{ lead.name }}</h6>
+                                                            <span class="badge bg-success lead-badge">{{ lead.get_status_display }}</span>
+                                                        </div>
+                                                        <div class="mb-2">
+                                                            <small><i class="fas fa-tag me-2"></i>{{ lead.get_interest_display }}</small>
+                                                        </div>
+                                                        <div class="mb-2">
+                                                            <small class="text-muted">{{ lead.created_at|date:"M d, Y" }} → {{ lead.updated_at|date:"M d, Y" }}</small>
+                                                        </div>
+                                                        {% if lead.notes %}
+                                                            <hr>
+                                                            <small class="text-muted">{{ lead.notes|linebreaksbr }}</small>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <div class="col-12">
+                                            <p class="text-center text-muted">No converted leads</p>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="lost" role="tabpanel" aria-labelledby="lost-tab">
+                                <div class="row">
+                                    {% if lost_leads %}
+                                        {% for lead in lost_leads %}
+                                            <div class="col-md-4 mb-3">
+                                                <div class="card">
+                                                    <div class="card-body">
+                                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                                            <h6 class="mb-0">{{ lead.name }}</h6>
+                                                            <span class="badge bg-secondary lead-badge">{{ lead.get_status_display }}</span>
+                                                        </div>
+                                                        <div class="mb-2">
+                                                            <small><i class="fas fa-tag me-2"></i>{{ lead.get_interest_display }}</small>
+                                                        </div>
+                                                        <div class="mb-2">
+                                                            <small class="text-muted">{{ lead.created_at|date:"M d, Y" }} → {{ lead.updated_at|date:"M d, Y" }}</small>
+                                                        </div>
+                                                        {% if lead.notes %}
+                                                            <hr>
+                                                            <small class="text-muted">{{ lead.notes|linebreaksbr }}</small>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <div class="col-12">
+                                            <p class="text-center text-muted">No lost leads</p>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Status Update Modal -->
+<div class="modal fade" id="updateStatusModal" tabindex="-1" aria-labelledby="updateStatusModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="updateStatusModalLabel">Update Lead Status</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="updateStatusForm" method="post">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <input type="hidden" id="lead_id" name="lead_id">
+                    <input type="hidden" id="status" name="status">
+
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Add Notes</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Add details about this status change..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Status</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Handle generate message buttons
+        const generateButtons = document.querySelectorAll('.generate-message');
+        generateButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const leadId = this.getAttribute('data-lead-id');
+                const messagePreview = document.getElementById('message-' + leadId);
+
+                // Show loading state
+                messagePreview.classList.remove('d-none');
+                messagePreview.innerHTML = '<div class="d-flex justify-content-center"><div class="spinner-border text-primary spinner-border-sm me-2" role="status"></div><span>Generating message...</span></div>';
+
+                // Make API call to generate message
+                fetch('/ai-assistant/generate-lead-message/' + leadId + '/')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.message) {
+                            messagePreview.innerHTML = `
+                                <div class="mb-2">
+                                    <strong>Suggested Message:</strong>
+                                </div>
+                                <p class="mb-2">${data.message}</p>
+                                <div class="d-flex justify-content-end">
+                                    <button class="btn btn-sm btn-outline-secondary me-2 copy-message" data-message="${encodeURIComponent(data.message)}">
+                                        <i class="fas fa-copy"></i> Copy
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger close-message" data-lead-id="${leadId}">
+                                        <i class="fas fa-times"></i> Close
+                                    </button>
+                                </div>
+                            `;
+
+                            // Add copy functionality
+                            const copyButton = messagePreview.querySelector('.copy-message');
+                            copyButton.addEventListener('click', function() {
+                                const message = decodeURIComponent(this.getAttribute('data-message'));
+                                navigator.clipboard.writeText(message)
+                                    .then(() => {
+                                        this.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                                        setTimeout(() => {
+                                            this.innerHTML = '<i class="fas fa-copy"></i> Copy';
+                                        }, 2000);
+                                    });
+                            });
+
+                            // Add close functionality
+                            const closeButton = messagePreview.querySelector('.close-message');
+                            closeButton.addEventListener('click', function() {
+                                const leadId = this.getAttribute('data-lead-id');
+                                document.getElementById('message-' + leadId).classList.add('d-none');
+                            });
+                        } else {
+                            messagePreview.innerHTML = '<div class="alert alert-danger">Failed to generate message</div>';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        messagePreview.innerHTML = '<div class="alert alert-danger">An error occurred</div>';
+                    });
+            });
+        });
+
+        // Handle status update buttons
+        const updateButtons = document.querySelectorAll('.update-status');
+        updateButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const leadId = this.getAttribute('data-lead-id');
+                const status = this.getAttribute('data-status');
+
+                // Set values in modal
+                document.getElementById('lead_id').value = leadId;
+                document.getElementById('status').value = status;
+
+                // Show modal
+                const modal = new bootstrap.Modal(document.getElementById('updateStatusModal'));
+                modal.show();
+            });
+        });
+
+        // Handle status update form submission
+        const updateStatusForm = document.getElementById('updateStatusForm');
+        updateStatusForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const leadId = document.getElementById('lead_id').value;
+            const form = this;
+
+            // Submit form
+            fetch('/ai-assistant/update-lead-status/' + leadId + '/', {
+                method: 'POST',
+                body: new FormData(form),
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    // Reload page to show updated statuses
+                    window.location.reload();
+                } else {
+                    throw new Error('Failed to update status');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            });
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Add Sale | FinArva AI{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3">Add New Sale</h1>
+            <p class="text-muted">Record a new successful sale to track your performance</p>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="mb-0">Sale Details</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label for="product" class="form-label">Product Name</label>
+                            <input type="text" class="form-control" id="product" name="product" required>
+                            <div class="form-text">Enter the specific product name (e.g., "Term Life Insurance")</div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="product_category" class="form-label">Product Category</label>
+                                <select class="form-select" id="product_category" name="product_category" required>
+                                    <option value="">-- Select Category --</option>
+                                    {% for value, label in product_categories %}
+                                        <option value="{{ value }}">{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="amount" class="form-label">Sale Amount (₹)</label>
+                                <input type="number" step="0.01" class="form-control" id="amount" name="amount" required>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="customer_name" class="form-label">Customer Name</label>
+                                <input type="text" class="form-control" id="customer_name" name="customer_name" required>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="customer_type" class="form-label">Customer Type</label>
+                                <select class="form-select" id="customer_type" name="customer_type" required>
+                                    <option value="">-- Select Type --</option>
+                                    {% for value, label in customer_types %}
+                                        <option value="{{ value }}">{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="lead_source" class="form-label">Lead Source</label>
+                            <select class="form-select" id="lead_source" name="lead_source">
+                                <option value="">-- Select Source --</option>
+                                {% for value, label in lead_sources %}
+                                    <option value="{{ value }}">{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">How did you acquire this customer?</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Notes (Optional)</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                            <div class="form-text">Any additional information about this sale</div>
+                        </div>
+
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary">Record Sale</button>
+                            <a href="{% url 'dashboard:index' %}" class="btn btn-outline-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card shadow mt-4">
+                <div class="card-body">
+                    <h5>Sales Tips</h5>
+                    <div class="ai-insight">
+                        <p>Recording your sales helps you track your performance and earn AI-powered insights to improve your results.</p>
+                        <p class="mb-0">After recording your sale, make sure to follow up with your customer in 7-10 days to ensure satisfaction and explore cross-selling opportunities!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

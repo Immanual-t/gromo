@@ -1,0 +1,40 @@
+{% if recent_insights %}
+    {% for insight in recent_insights %}
+        <div class="ai-insight mb-3">
+            <div class="d-flex justify-content-between mb-2">
+                <span class="badge bg-{{ insight.category|slugify }}">{{ insight.get_category_display }}</span>
+                <small class="text-muted">{{ insight.created_at|date:"M d, H:i" }}</small>
+            </div>
+            <p class="mb-0">{{ insight.insight_text }}</p>
+        </div>
+        {% if not forloop.last %}
+            <hr>
+        {% endif %}
+    {% endfor %}
+{% else %}
+    <div class="text-center py-4">
+        <p class="text-muted mb-3">No AI insights available yet</p>
+        <p class="small text-muted">Insights will be generated as you use the platform</p>
+    </div>
+{% endif %}
+
+<style>
+    .ai-insight {
+        background-color: #f8f9fa;
+        border-left: 4px solid #0d6efd;
+        padding: 15px;
+        border-radius: 4px;
+    }
+    .bg-performance {
+        background-color: #0d6efd;
+    }
+    .bg-learning {
+        background-color: #198754;
+    }
+    .bg-lead {
+        background-color: #fd7e14;
+    }
+    .bg-sales {
+        background-color: #6f42c1;
+    }
+</style>

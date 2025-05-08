@@ -1,0 +1,46 @@
+{% load custom_filters %}
+
+{% if high_priority_leads %}
+    <div class="list-group">
+        {% for lead in high_priority_leads %}
+            <a href="{% url 'ai_assistant:leads' %}#lead-{{ lead.id }}" class="list-group-item list-group-item-action">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <h6 class="mb-0">{{ lead.name }}</h6>
+                    <span class="badge bg-{{ lead.status|slugify }}">{{ lead.get_status_display }}</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <small class="text-muted">{{ lead.get_interest_display }}</small>
+                    <div>
+                        <div class="progress" style="width: 60px; height: 5px;">
+                            <div class="progress-bar" role="progressbar" style="width: {{ lead.priority_score|floatformat:2|multiply:100 }}%"></div>
+                        </div>
+                        <small class="text-muted">Priority: {{ lead.priority_score|floatformat:2|multiply:100 }}%</small>
+                    </div>
+                </div>
+            </a>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="text-center py-4">
+        <p class="text-muted mb-3">No leads found</p>
+        <a href="{% url 'ai_assistant:add_lead' %}" class="btn btn-primary">Add Lead</a>
+    </div>
+{% endif %}
+
+<style>
+    .bg-new {
+        background-color: #0d6efd;
+    }
+    .bg-contacted {
+        background-color: #6f42c1;
+    }
+    .bg-interested {
+        background-color: #198754;
+    }
+    .bg-converted {
+        background-color: #20c997;
+    }
+    .bg-lost {
+        background-color: #6c757d;
+    }
+</style>
