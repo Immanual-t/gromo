@@ -1,0 +1,345 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static admin_filters %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static "admin/css/dashboard.css" %}">
+  <style>
+    .dashboard-card {
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        background-color: #fff;
+    }
+    .dashboard-card-header {
+        padding: 15px;
+        border-bottom: 1px solid #f0f0f0;
+        font-weight: bold;
+    }
+    .dashboard-card-body {
+        padding: 15px;
+    }
+    .stat-card {
+        background-color: #f9f9f9;
+        border-radius: 5px;
+        padding: 15px;
+        margin-bottom: 15px;
+        border-left: 3px solid #79aec8;
+    }
+    .stat-card h3 {
+        margin: 0;
+        font-size: 24px;
+        color: #417690;
+    }
+    .stat-card p {
+        margin: 5px 0 0 0;
+        color: #666;
+    }
+    .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+    }
+    .stat-sales { border-color: #79aec8; }
+    .stat-users { border-color: #417690; }
+    .stat-leads { border-color: #c4c4c4; }
+    .stat-ai { border-color: #f5dd5d; }
+
+    .distribution-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    .distribution-item:last-child {
+        border-bottom: none;
+    }
+    .distribution-bar {
+        height: 5px;
+        background-color: #eee;
+        border-radius: 5px;
+        margin-top: 5px;
+        overflow: hidden;
+    }
+    .distribution-progress {
+        height: 100%;
+        background-color: #79aec8;
+    }
+
+    /* Responsive grid for admin dashboard */
+    .admin-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 20px;
+    }
+    @media (max-width: 1200px) {
+        .admin-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* Adjust regular Django admin elements to match new style */
+    #content-related {
+        background: #fff;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+  </style>
+{% endblock %}
+
+{% block coltype %}colMS{% endblock %}
+
+{% block bodyclass %}{{ block.super }} dashboard{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+</div>
+{% endblock %}
+
+{% block nav-sidebar %}{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <h1>FinArva AI Administration Dashboard</h1>
+    <p>Welcome to the FinArva AI administration portal. Here you can manage all aspects of the application.</p>
+
+    <div class="admin-grid">
+        <div class="dashboard-main">
+            <!-- Overview Statistics -->
+            <div class="dashboard-card">
+                <div class="dashboard-card-header">
+                    Overview (Last 30 Days: {{ start_date|date:"M d, Y" }} - {{ today|date:"M d, Y" }})
+                </div>
+                <div class="dashboard-card-body">
+                    <div class="stat-grid">
+                        <div class="stat-card stat-sales">
+                            <h3>{{ total_sales }}</h3>
+                            <p>Total Sales</p>
+                        </div>
+                        <div class="stat-card stat-sales">
+                            <h3>₹{{ total_sales_amount|floatformat:2 }}</h3>
+                            <p>Sales Amount</p>
+                        </div>
+                        <div class="stat-card stat-sales">
+                            <h3>₹{{ total_commission|floatformat:2 }}</h3>
+                            <p>Total Commission</p>
+                        </div>
+                        <div class="stat-card stat-users">
+                            <h3>{{ total_users }}</h3>
+                            <p>Total Users</p>
+                        </div>
+                        <div class="stat-card stat-users">
+                            <h3>{{ active_users }}</h3>
+                            <p>Active Users</p>
+                        </div>
+                        <div class="stat-card stat-leads">
+                            <h3>{{ total_leads }}</h3>
+                            <p>Total Leads</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lead Pipeline -->
+            <div class="dashboard-card">
+                <div class="dashboard-card-header">
+                    Lead Pipeline
+                </div>
+                <div class="dashboard-card-body">
+                    <div class="stat-grid">
+                        <div class="stat-card stat-leads">
+                            <h3>{{ new_leads }}</h3>
+                            <p>New Leads</p>
+                        </div>
+                        <div class="stat-card stat-leads">
+                            <h3>{{ contacted_leads }}</h3>
+                            <p>Contacted</p>
+                        </div>
+                        <div class="stat-card stat-leads">
+                            <h3>{{ interested_leads }}</h3>
+                            <p>Interested</p>
+                        </div>
+                        <div class="stat-card stat-leads">
+                            <h3>{{ converted_leads }}</h3>
+                            <p>Converted</p>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-card-header" style="margin-top: 20px;">
+                        Recent Leads
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Product Interest</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for lead in recent_leads %}
+                            <tr>
+                                <td>{{ lead.name }}</td>
+                                <td>{{ lead.get_interest_display }}</td>
+                                <td>{{ lead.get_status_display }}</td>
+                                <td>{{ lead.created_at|date:"M d, Y" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Recent Sales -->
+            <div class="dashboard-card">
+                <div class="dashboard-card-header">
+                    Recent Sales
+                </div>
+                <div class="dashboard-card-body">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>User</th>
+                                <th>Product</th>
+                                <th>Customer</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sale in recent_sales %}
+                            <tr>
+                                <td>{{ sale.date|date:"M d, Y" }}</td>
+                                <td>{{ sale.user.username }}</td>
+                                <td>{{ sale.product }}</td>
+                                <td>{{ sale.customer_name }}</td>
+                                <td>₹{{ sale.amount|floatformat:2 }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-sidebar">
+            <!-- Product Distribution -->
+            <div class="dashboard-card">
+                <div class="dashboard-card-header">
+                    Product Distribution
+                </div>
+                <div class="dashboard-card-body">
+                    {% for product in product_distribution %}
+                    <div class="distribution-item">
+                        <div>
+                            <strong>{{ product.product_category|title }}</strong>
+                            <div class="distribution-bar">
+                                <div class="distribution-progress" style="width: {{ product.count|div:total_sales|mul:100 }}%"></div>
+                            </div>
+                        </div>
+                        <div>{{ product.count }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- AI Statistics -->
+            <div class="dashboard-card">
+                <div class="dashboard-card-header">
+                    AI Statistics
+                </div>
+                <div class="dashboard-card-body">
+                    <div class="stat-grid">
+                        <div class="stat-card stat-ai">
+                            <h3>{{ total_insights }}</h3>
+                            <p>AI Insights</p>
+                        </div>
+                        <div class="stat-card stat-ai">
+                            <h3>{{ total_responses }}</h3>
+                            <p>AI Responses</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if app_list %}
+                <div class="dashboard-card">
+                    <div class="dashboard-card-header">
+                        Applications
+                    </div>
+                    <div class="dashboard-card-body">
+                        {% for app in app_list %}
+                            <div class="app-{{ app.app_label }} module{% if app.app_url in request.path|urlencode %} current-app{% endif %}">
+                                <table>
+                                    <caption>
+                                        <a href="{{ app.app_url }}" class="section" title="{% blocktranslate with name=app.name %}Models in the {{ name }} application{% endblocktranslate %}">{{ app.name }}</a>
+                                    </caption>
+                                    {% for model in app.models %}
+                                        <tr class="model-{{ model.object_name|lower }}{% if model.admin_url in request.path|urlencode %} current-model{% endif %}">
+                                            {% if model.admin_url %}
+                                                <th scope="row"><a href="{{ model.admin_url }}"{% if model.admin_url in request.path|urlencode %} aria-current="page"{% endif %}>{{ model.name }}</a></th>
+                                            {% else %}
+                                                <th scope="row">{{ model.name }}</th>
+                                            {% endif %}
+
+                                            {% if model.add_url %}
+                                                <td><a href="{{ model.add_url }}" class="addlink">{% translate 'Add' %}</a></td>
+                                            {% else %}
+                                                <td></td>
+                                            {% endif %}
+
+                                            {% if model.admin_url and show_changelinks %}
+                                                {% if model.view_only %}
+                                                    <td><a href="{{ model.admin_url }}" class="viewlink">{% translate 'View' %}</a></td>
+                                                {% else %}
+                                                    <td><a href="{{ model.admin_url }}" class="changelink">{% translate 'Change' %}</a></td>
+                                                {% endif %}
+                                            {% else %}
+                                                <td></td>
+                                            {% endif %}
+                                        </tr>
+                                    {% endfor %}
+                                </table>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block sidebar %}
+<div id="content-related">
+    <div class="module" id="recent-actions-module">
+        <h2>{% translate 'Recent actions' %}</h2>
+        <h3>{% translate 'My actions' %}</h3>
+        {% load log %}
+        {% get_admin_log 10 as admin_log for_user user %}
+        {% if not admin_log %}
+            <p>{% translate 'None available' %}</p>
+        {% else %}
+            <ul class="actionlist">
+                {% for entry in admin_log %}
+                    <li class="{% if entry.is_addition %}addlink{% endif %}{% if entry.is_change %}changelink{% endif %}{% if entry.is_deletion %}deletelink{% endif %}">
+                        {% if entry.is_deletion or not entry.get_admin_url %}
+                            {{ entry.object_repr }}
+                        {% else %}
+                            <a href="{{ entry.get_admin_url }}">{{ entry.object_repr }}</a>
+                        {% endif %}
+                        <br>
+                        {% if entry.content_type %}
+                            <span class="mini quiet">{% filter capfirst %}{{ entry.content_type.name }}{% endfilter %}</span>
+                        {% else %}
+                            <span class="mini quiet">{% translate 'Unknown content' %}</span>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
